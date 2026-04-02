@@ -69,6 +69,13 @@ export default function PhoneScanner() {
 
     scanner.render(
       (decodedText) => {
+        if (isConnected) {
+          scanner.stop();
+          qrScannerRef.current = null;
+          setShowPairScanner(false);
+          return;
+        }
+
         setTargetId(decodedText);
         scanner.stop();
         qrScannerRef.current = null;
@@ -98,6 +105,7 @@ export default function PhoneScanner() {
 
     conn.on('open', () => {
       connRef.current = conn;
+      stopPairScanner();
       setIsConnected(true);
       setTargetId('');
     });
@@ -167,6 +175,22 @@ export default function PhoneScanner() {
         .catch(() => {
           scannerRef.current = null;
           setScannerActive(false);
+        });
+    }
+  };
+
+  // Stop QR pairing scanner
+  const stopPairScanner = () => {
+    if (qrScannerRef.current) {
+      qrScannerRef.current
+        .stop()
+        .then(() => {
+          qrScannerRef.current = null;
+          setShowPairScanner(false);
+        })
+        .catch(() => {
+          qrScannerRef.current = null;
+          setShowPairScanner(false);
         });
     }
   };

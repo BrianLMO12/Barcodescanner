@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import Peer from 'peerjs';
-import QRCode from 'qrcode.react';
+import { QRCodeSVG } from 'qrcode.react';
 
 export default function PCReceiver() {
   const [peerId, setPeerId] = useState('');
@@ -67,7 +67,7 @@ export default function PCReceiver() {
             </h2>
             <div className="flex justify-center mb-4">
               <div className="bg-white p-4 border-2 border-gray-200 rounded-lg">
-                <QRCode value={peerId} size={256} level="H" includeMargin={true} />
+                <QRCodeSVG value={peerId} size={256} level="H" includeMargin={true} />
               </div>
             </div>
             <div className="mt-4">

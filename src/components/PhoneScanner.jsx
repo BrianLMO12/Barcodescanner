@@ -11,6 +11,8 @@ export default function PhoneScanner() {
   const [scanHistory, setScanHistory] = useState([]);
   const [showPairScanner, setShowPairScanner] = useState(false);
   const [cameraError, setCameraError] = useState('');
+  const [phase, setPhase] = useState('setup'); // 'setup' | 'scanning'
+  const [detectedDot, setDetectedDot] = useState(false);
   const peerRef = useRef(null);
   const connRef = useRef(null);
   const scannerRef = useRef(null);
@@ -107,6 +109,7 @@ export default function PhoneScanner() {
       connRef.current = conn;
       stopPairScanner();
       setIsConnected(true);
+      setPhase('scanning');
       setTargetId('');
     });
 
@@ -137,7 +140,7 @@ export default function PhoneScanner() {
 
     scanner.render(
       (decodedText) => {
-        setLastScannedCode(decodedText);
+        // send to PC
         setScanHistory((prev) => [
           {
             id: Date.now(),
@@ -147,9 +150,17 @@ export default function PhoneScanner() {
           ...prev,
         ]);
 
-        if (connRef.current) {
-          connRef.current.send(decodedText);
+        if (connRef.current && connRef.current.open) {
+          try {
+            connRef.current.send(decodedText);
+          } catch (e) {
+            console.warn('Failed to send scan via connection', e);
+          }
         }
+
+        // visual feedback on phone: green when detected briefly
+        setDetectedDot(true);
+        setTimeout(() => setDetectedDot(false), 800);
 
         playBeep();
         flashScreen();
@@ -300,69 +311,70 @@ export default function PhoneScanner() {
           </div>
         ) : (
           <>
-            <div className="bg-green-50 border-2 border-green-400 rounded-lg p-3 mb-4 text-center">
-              <p className="text-green-700 font-semibold text-sm">
-                ✓ Connected to PC
-              </p>
-            </div>
-
-            {/* Scanner */}
-            <div className="border-4 border-blue-500 rounded-lg overflow-hidden mb-4">
-              <div id="qr_scanner" style={{ width: '100%' }}></div>
-              {!scannerActive && (
-                <div className="p-4 text-center text-sm text-gray-500 bg-blue-50">
-                  Starting camera...
+            {phase === 'scanning' ? (
+              <div>
+                <div className="bg-green-50 border-2 border-green-400 rounded-lg p-3 mb-4 text-center">
+                  <p className="text-green-700 font-semibold text-sm">✓ Connected to PC</p>
                 </div>
-              )}
-            </div>
 
-            {/* Last Scan Display */}
-            {lastScannedCode && (
-              <div className="bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg p-4 mb-4">
-                <p className="text-xs text-gray-600 mb-1">Last Scan:</p>
-                <p className="text-lg font-mono font-bold text-gray-800 break-all">
-                  {lastScannedCode}
-                </p>
+                <div className="border-4 border-blue-500 rounded-lg overflow-hidden mb-4 relative">
+                  <div id="qr_scanner" style={{ width: '100%' }}></div>
+                  <div className="absolute top-3 right-3">
+                    <span className={`w-4 h-4 rounded-full inline-block ${detectedDot ? 'bg-green-500' : 'bg-red-500'} border-2 border-white`} />
+                  </div>
+                  {!scannerActive && (
+                    <div className="p-4 text-center text-sm text-gray-500 bg-blue-50">Starting camera...</div>
+                  )}
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      connRef.current?.close();
+                      setIsConnected(false);
+                      setPhase('setup');
+                      stopScanner();
+                    }}
+                    className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition"
+                  >
+                    Disconnect
+                  </button>
+                </div>
               </div>
-            )}
-
-            {/* Scan History */}
-            <div className="bg-white rounded-lg shadow-lg p-4">
-              <h3 className="font-semibold text-gray-800 mb-3">Scan History</h3>
-              {scanHistory.length === 0 ? (
-                <p className="text-gray-500 text-center py-4 text-sm">
-                  Scans will appear here
-                </p>
-              ) : (
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {scanHistory.map((scan) => (
-                    <div
-                      key={scan.id}
-                      className="bg-gray-50 p-2 rounded text-xs"
-                    >
-                      <p className="font-mono text-gray-800 break-all">
-                        {scan.value}
-                      </p>
-                      <p className="text-gray-500 text-xs mt-1">
-                        {scan.timestamp}
-                      </p>
-                    </div>
-                  ))}
+            ) : (
+              <>
+                <div className="bg-green-50 border-2 border-green-400 rounded-lg p-3 mb-4 text-center">
+                  <p className="text-green-700 font-semibold text-sm">✓ Connected to PC</p>
                 </div>
-              )}
-            </div>
 
-            {/* Disconnect Button */}
-            <button
-              onClick={() => {
-                connRef.current?.close();
-                setIsConnected(false);
-                stopScanner();
-              }}
-              className="w-full mt-4 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition"
-            >
-              Disconnect
-            </button>
+                <div className="bg-white rounded-lg shadow-lg p-4">
+                  <h3 className="font-semibold text-gray-800 mb-3">Scan History</h3>
+                  {scanHistory.length === 0 ? (
+                    <p className="text-gray-500 text-center py-4 text-sm">Scans will appear here</p>
+                  ) : (
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {scanHistory.map((scan) => (
+                        <div key={scan.id} className="bg-gray-50 p-2 rounded text-xs">
+                          <p className="font-mono text-gray-800 break-all">{scan.value}</p>
+                          <p className="text-gray-500 text-xs mt-1">{scan.timestamp}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => {
+                    connRef.current?.close();
+                    setIsConnected(false);
+                    stopScanner();
+                  }}
+                  className="w-full mt-4 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition"
+                >
+                  Disconnect
+                </button>
+              </>
+            )}
           </>
         )}
       </div>

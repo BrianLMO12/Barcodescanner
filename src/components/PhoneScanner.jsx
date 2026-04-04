@@ -107,19 +107,22 @@ export default function PhoneScanner() {
     const conn = peerRef.current.connect(targetId);
 
     // move to scanning UI immediately so phone doesn't keep showing the input
-    setPhase('scanning');
+    setPhase('connecting');
     setShowPairScanner(false);
 
     connRef.current = conn;
-    setPhase('connecting');
 
-    conn.on('open', () => {
-      // confirmed open
+    const onOpen = () => {
       stopPairScanner();
       setIsConnected(true);
       setPhase('scanning');
       setTargetId('');
-    });
+    };
+
+    conn.on('open', onOpen);
+    if (conn.open) {
+      onOpen();
+    }
 
     conn.on('error', (err) => {
       alert('Connection error: ' + err.type);

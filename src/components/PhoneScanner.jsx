@@ -18,6 +18,7 @@ export default function PhoneScanner() {
   const scannerRef = useRef(null);
   const qrScannerRef = useRef(null);
   const audioRef = useRef(null);
+  const pendingMessagesRef = useRef([]);
 
   const isSecureContext =
     window.location.protocol === 'https:' ||
@@ -117,6 +118,17 @@ export default function PhoneScanner() {
       setIsConnected(true);
       setPhase('scanning');
       setTargetId('');
+
+      if (pendingMessagesRef.current.length > 0 && connRef.current) {
+        pendingMessagesRef.current.forEach((message) => {
+          try {
+            connRef.current.send(message);
+          } catch (err) {
+            console.warn('Failed to send queued scan:', err);
+          }
+        });
+        pendingMessagesRef.current = [];
+      }
     };
 
     conn.on('open', onOpen);
@@ -126,11 +138,13 @@ export default function PhoneScanner() {
 
     conn.on('error', (err) => {
       alert('Connection error: ' + err.type);
+      pendingMessagesRef.current = [];
       setIsConnected(false);
       setPhase('setup');
     });
 
     conn.on('close', () => {
+      pendingMessagesRef.current = [];
       setIsConnected(false);
       setPhase('setup');
       stopScanner();
@@ -163,12 +177,16 @@ export default function PhoneScanner() {
           ...prev,
         ]);
 
-        if (connRef.current && connRef.current.open) {
+        if (connRef.current) {
           try {
             connRef.current.send(decodedText);
           } catch (e) {
             console.warn('Failed to send scan via connection', e);
+            pendingMessagesRef.current.push(decodedText);
           }
+        } else {
+          console.warn('No connection available to send scanned data');
+          pendingMessagesRef.current.push(decodedText);
         }
 
         // visual feedback on phone: green when detected briefly

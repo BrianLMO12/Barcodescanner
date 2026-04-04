@@ -19,13 +19,31 @@ export default function PCReceiver() {
 
     peer.on('connection', (conn) => {
       connRef.current = conn;
-      setIsConnected(true);
+
+      const handleOpen = () => {
+        setIsConnected(true);
+        try {
+          conn.send({ type: 'handshake', text: 'hello' });
+        } catch (err) {
+          console.warn('Failed to send handshake to phone', err);
+        }
+      };
+
+      conn.on('open', handleOpen);
+      if (conn.open) handleOpen();
 
       conn.on('data', (data) => {
+        // ignore handshake messages from phone
+        if (data && data.type === 'handshake') {
+          console.debug('Received handshake from phone', data);
+          return;
+        }
+
+        const value = typeof data === 'object' && data.value ? data.value : data;
         setBarcodes((prev) => [
           {
             id: Date.now(),
-            value: data,
+            value: value,
             timestamp: new Date().toLocaleTimeString(),
           },
           ...prev,
@@ -35,6 +53,10 @@ export default function PCReceiver() {
       conn.on('close', () => {
         setIsConnected(false);
         setBarcodes([]);
+      });
+
+      conn.on('error', (err) => {
+        console.warn('Peer connection error (PC):', err);
       });
     });
 

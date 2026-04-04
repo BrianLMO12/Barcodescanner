@@ -113,8 +113,10 @@ export default function PhoneScanner() {
     setShowPairScanner(false);
 
     connRef.current = conn;
-
+    let openHandled = false;
     const onOpen = () => {
+      if (openHandled) return;
+      openHandled = true;
       stopPairScanner();
       setIsConnected(true);
       setPhase('scanning');
@@ -136,6 +138,13 @@ export default function PhoneScanner() {
     if (conn.open) {
       onOpen();
     }
+
+    conn.on('data', (data) => {
+      console.debug('Phone received data on conn:', data);
+      if (data && (data.type === 'handshake' || data === 'hello' || data === 'HELLO')) {
+        onOpen();
+      }
+    });
 
     conn.on('error', (err) => {
       const errType = err && (err.type || err.name || err.message) || String(err);

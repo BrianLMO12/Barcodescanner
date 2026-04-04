@@ -71,13 +71,14 @@ export default function PhoneScanner() {
 
     scanner.render(
       (decodedText) => {
-        if (isConnected) {
+        if (isConnected || phase !== 'setup') {
           scanner.stop();
           qrScannerRef.current = null;
           setShowPairScanner(false);
           return;
         }
 
+        // only set target when in setup pairing phase
         setTargetId(decodedText);
         scanner.stop();
         qrScannerRef.current = null;
@@ -105,11 +106,16 @@ export default function PhoneScanner() {
 
     const conn = peerRef.current.connect(targetId);
 
+    // move to scanning UI immediately so phone doesn't keep showing the input
+    setPhase('scanning');
+    setShowPairScanner(false);
+
+    connRef.current = conn;
+
     conn.on('open', () => {
-      connRef.current = conn;
+      // confirmed open
       stopPairScanner();
       setIsConnected(true);
-      setPhase('scanning');
       setTargetId('');
     });
 
@@ -251,6 +257,7 @@ export default function PhoneScanner() {
     }
     if (qrScannerRef.current) return;
     setCameraError('');
+    setPhase('setup');
     setShowPairScanner(true);
   };
 

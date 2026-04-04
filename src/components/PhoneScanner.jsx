@@ -11,7 +11,7 @@ export default function PhoneScanner() {
   const [scanHistory, setScanHistory] = useState([]);
   const [showPairScanner, setShowPairScanner] = useState(false);
   const [cameraError, setCameraError] = useState('');
-  const [phase, setPhase] = useState('setup'); // 'setup' | 'scanning'
+  const [phase, setPhase] = useState('setup'); // 'setup' | 'connecting' | 'scanning'
   const [detectedDot, setDetectedDot] = useState(false);
   const peerRef = useRef(null);
   const connRef = useRef(null);
@@ -111,21 +111,25 @@ export default function PhoneScanner() {
     setShowPairScanner(false);
 
     connRef.current = conn;
+    setPhase('connecting');
 
     conn.on('open', () => {
       // confirmed open
       stopPairScanner();
       setIsConnected(true);
+      setPhase('scanning');
       setTargetId('');
     });
 
     conn.on('error', (err) => {
       alert('Connection error: ' + err.type);
       setIsConnected(false);
+      setPhase('setup');
     });
 
     conn.on('close', () => {
       setIsConnected(false);
+      setPhase('setup');
       stopScanner();
     });
   };
@@ -261,6 +265,8 @@ export default function PhoneScanner() {
     setShowPairScanner(true);
   };
 
+  const showScannerView = phase !== 'setup';
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 p-4">
       <div className="max-w-md mx-auto">
@@ -272,7 +278,7 @@ export default function PhoneScanner() {
           <p className="text-gray-600 text-sm">Point camera at barcodes</p>
         </div>
 
-        {!isConnected ? (
+        {!showScannerView ? (
           // Connection Setup
           <div className="bg-white rounded-lg shadow-lg p-6 space-y-4">
             <div>
@@ -318,10 +324,12 @@ export default function PhoneScanner() {
           </div>
         ) : (
           <>
-            {phase === 'scanning' ? (
+            {(phase === 'scanning' || phase === 'connecting') ? (
               <div>
                 <div className="bg-green-50 border-2 border-green-400 rounded-lg p-3 mb-4 text-center">
-                  <p className="text-green-700 font-semibold text-sm">✓ Connected to PC</p>
+                  <p className="text-green-700 font-semibold text-sm">
+                    {phase === 'connecting' ? 'Connecting to PC…' : '✓ Connected to PC'}
+                  </p>
                 </div>
 
                 <div className="border-4 border-blue-500 rounded-lg overflow-hidden mb-4 relative">
@@ -330,7 +338,9 @@ export default function PhoneScanner() {
                     <span className={`w-4 h-4 rounded-full inline-block ${detectedDot ? 'bg-green-500' : 'bg-red-500'} border-2 border-white`} />
                   </div>
                   {!scannerActive && (
-                    <div className="p-4 text-center text-sm text-gray-500 bg-blue-50">Starting camera...</div>
+                    <div className="p-4 text-center text-sm text-gray-500 bg-blue-50">
+                      {phase === 'connecting' ? 'Waiting for peer connection...' : 'Starting camera...'}
+                    </div>
                   )}
                 </div>
 

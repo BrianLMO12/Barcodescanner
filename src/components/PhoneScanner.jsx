@@ -19,6 +19,7 @@ export default function PhoneScanner() {
   const qrScannerRef = useRef(null);
   const audioRef = useRef(null);
   const pendingMessagesRef = useRef([]);
+  const lastScanRef = useRef({ value: '', ts: 0 });
 
   const isSecureContext =
     window.location.protocol === 'https:' ||
@@ -137,7 +138,12 @@ export default function PhoneScanner() {
     }
 
     conn.on('error', (err) => {
-      alert('Connection error: ' + err.type);
+      const errType = err && (err.type || err.name || err.message) || String(err);
+      if (errType === 'not-open-yet') {
+        console.warn('Ignored connection error:', errType);
+        return;
+      }
+      alert('Connection error: ' + errType);
       pendingMessagesRef.current = [];
       setIsConnected(false);
       setPhase('setup');
@@ -167,6 +173,17 @@ export default function PhoneScanner() {
 
     scanner.render(
       (decodedText) => {
+        const now = Date.now();
+        // ignore rapid duplicate scans to avoid repeated alerts/feedback
+        if (
+          decodedText === lastScanRef.current.value &&
+          now - lastScanRef.current.ts < 1200
+        ) {
+          console.debug('Ignored duplicate scan:', decodedText);
+          return;
+        }
+        lastScanRef.current = { value: decodedText, ts: now };
+        setLastScannedCode(decodedText);
         // send to PC
         setScanHistory((prev) => [
           {
@@ -177,7 +194,7 @@ export default function PhoneScanner() {
           ...prev,
         ]);
 
-        if (connRef.current) {
+        if (connRef.current && connRef.current.open) {
           try {
             connRef.current.send(decodedText);
           } catch (e) {
@@ -185,7 +202,7 @@ export default function PhoneScanner() {
             pendingMessagesRef.current.push(decodedText);
           }
         } else {
-          console.warn('No connection available to send scanned data');
+          console.warn('Connection not open yet, queueing scan');
           pendingMessagesRef.current.push(decodedText);
         }
 

@@ -42,7 +42,7 @@ export default function PhoneScanner() {
   }, []);
 
   useEffect(() => {
-    if (isConnected) {
+    if (phase !== 'setup') {
       if (!isSecureContext) {
         setCameraError(
           'Camera access requires HTTPS or localhost. Use a secure URL or deploy the app to a secure host.'
@@ -55,7 +55,7 @@ export default function PhoneScanner() {
       stopScanner();
       setCameraError('');
     }
-  }, [isConnected]);
+  }, [phase]);
 
   useEffect(() => {
     if (!showPairScanner || qrScannerRef.current) return;

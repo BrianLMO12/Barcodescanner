@@ -29,8 +29,10 @@ export default function PhoneScanner() {
   // Initialize Peer
   useEffect(() => {
     const peer = new Peer();
+    console.debug('PhoneScanner: initializing Peer');
 
     peer.on('open', (id) => {
+      console.debug('PhoneScanner: peer open', id);
       setPeerId(id);
     });
 
@@ -106,7 +108,9 @@ export default function PhoneScanner() {
       return;
     }
 
+    console.debug('PhoneScanner: attempting connect to', targetId);
     const conn = peerRef.current.connect(targetId);
+    console.debug('PhoneScanner: connection object created, open=', conn.open, 'peer=', conn.peer);
 
     // move to scanning UI immediately so phone doesn't keep showing the input
     setPhase('connecting');
@@ -205,6 +209,7 @@ export default function PhoneScanner() {
 
         if (connRef.current && connRef.current.open) {
           try {
+            console.debug('PhoneScanner: sending scanned text to PC', decodedText);
             connRef.current.send(decodedText);
           } catch (e) {
             console.warn('Failed to send scan via connection', e);
@@ -212,6 +217,7 @@ export default function PhoneScanner() {
           }
         } else {
           console.warn('Connection not open yet, queueing scan');
+          console.debug('PhoneScanner: queued scanned text', decodedText, 'queueLen=', pendingMessagesRef.current.length + 1);
           pendingMessagesRef.current.push(decodedText);
         }
 

@@ -11,16 +11,20 @@ export default function PCReceiver() {
 
   useEffect(() => {
     // Initialize Peer
+    console.debug('PCReceiver: initializing Peer');
     const peer = new Peer();
 
     peer.on('open', (id) => {
+      console.debug('PCReceiver: peer open', id);
       setPeerId(id);
     });
 
     peer.on('connection', (conn) => {
+      console.debug('PCReceiver: incoming connection from', conn.peer);
       connRef.current = conn;
 
       const handleOpen = () => {
+        console.debug('PCReceiver: connection open, sending handshake');
         setIsConnected(true);
         try {
           conn.send({ type: 'handshake', text: 'hello' });
@@ -33,9 +37,10 @@ export default function PCReceiver() {
       if (conn.open) handleOpen();
 
       conn.on('data', (data) => {
+        console.debug('PCReceiver: data event', data);
         // ignore handshake messages from phone
         if (data && data.type === 'handshake') {
-          console.debug('Received handshake from phone', data);
+          console.debug('PCReceiver: Received handshake from phone', data);
           return;
         }
 
